@@ -146,8 +146,17 @@ information if the stream contains it.  Not my best work, I know."
                         (plist-put tool-call :input nil)
                         (plist-put tool-call :id (plist-get tool-call :id)))
                       tool-use))
-              (plist-put info :output-tokens
-                         (map-nested-elt response '(:usage :output_tokens)))
+              ;; Extract all usage statistics from message_delta event
+              (when-let ((usage (plist-get response :usage)))
+                (when-let ((input-tokens (plist-get usage :input_tokens)))
+                  (plist-put info :input-tokens input-tokens))
+                (when-let ((output-tokens (plist-get usage :output_tokens)))
+                  (plist-put info :output-tokens output-tokens))
+                ;; Extract prompt caching tokens (Anthropic-specific)
+                (when-let ((cache-creation (plist-get usage :cache_creation_input_tokens)))
+                  (plist-put info :cache-creation-tokens cache-creation))
+                (when-let ((cache-read (plist-get usage :cache_read_input_tokens)))
+                  (plist-put info :cache-read-tokens cache-read)))
               (plist-put info :stop-reason
                          (map-nested-elt response '(:delta :stop_reason)))))))
       (error (goto-char pt)))
