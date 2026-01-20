@@ -230,6 +230,17 @@ information if the stream contains it."
                   (when (plist-member info :reasoning-chunks) (plist-put info :reasoning-chunks nil)))
               (when-let* ((response (gptel--json-read))
                           (delta (map-nested-elt response '(:choices 0 :delta))))
+                ;; Extract usage stats if present (from stream_options.include_usage)
+                (when-let ((usage (plist-get response :usage)))
+                  (when-let ((input-tokens (plist-get usage :prompt_tokens)))
+                    (plist-put info :input-tokens input-tokens))
+                  (when-let ((output-tokens (plist-get usage :completion_tokens)))
+                    (plist-put info :output-tokens output-tokens)))
+                ;; Extract stop reason if present
+                (when-let* ((choice0 (map-nested-elt response '(:choices 0)))
+                            (finish-reason (plist-get choice0 :finish_reason))
+                            ((not (eq finish-reason :null))))
+                  (plist-put info :stop-reason finish-reason))
                 (if-let* ((content (plist-get delta :content))
                           ((not (or (eq content :null) (string-empty-p content)))))
                     (push content content-strs)
@@ -316,7 +327,9 @@ Mutate state INFO with response metadata."
   (let ((prompts-plist
          `(:model ,(gptel--model-name gptel-model)
            :messages [,@prompts]
-           :stream ,(or gptel-stream :json-false)))
+           :stream ,(or gptel-stream :json-false)
+           ;; Request usage stats when streaming (OpenAI API 2024-05+)
+           ,@(when gptel-stream '(:stream_options (:include_usage t)))))
         (reasoning-model-p ; TODO: Embed this capability in the model's properties
          (memq gptel-model '(o1 o1-preview o1-mini o3-mini o3 o4-mini
                                 gpt-5 gpt-5-mini gpt-5-nano gpt-5.1 gpt-5.2))))
