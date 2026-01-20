@@ -253,9 +253,9 @@ information if the stream contains it."
                   (if-let* ((content (plist-get delta :content))
                             ((not (or (eq content :null) (string-empty-p content)))))
                       (push content content-strs)
-                  ;; No text content, so look for tool calls
-                  (when-let* ((tool-call (map-nested-elt delta '(:tool_calls 0)))
-                              (func (plist-get tool-call :function)))
+                    ;; No text content, so look for tool calls
+                    (when-let* ((tool-call (map-nested-elt delta '(:tool_calls 0)))
+                                (func (plist-get tool-call :function)))
                     (if (and-let* ((func-name (plist-get func :name)) ((not (eq func-name :null))))
                           ;; TEMP: This check is for litellm compatibility, should be removed
                           (not (equal func-name "null"))) ; new tool block begins
@@ -288,7 +288,7 @@ information if the stream contains it."
                     (if-let* (((plist-member info :reasoning)) ;Is this a reasoning model?
                               (c (plist-get delta :content)) ;Started receiving text content?
                               ((not (or (eq c :null) (string-blank-p c)))))
-                        (plist-put info :reasoning-block t)))))))) ;Signal end of reasoning block
+                        (plist-put info :reasoning-block t))))))))) ;Signal end of reasoning block
       (error (goto-char (match-beginning 0))))
     (apply #'concat (nreverse content-strs))))
 
