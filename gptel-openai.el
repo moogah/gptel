@@ -230,12 +230,18 @@ information if the stream contains it."
                   (when (plist-member info :reasoning-chunks) (plist-put info :reasoning-chunks nil)))
               (when-let* ((response (gptel--json-read))
                           (delta (map-nested-elt response '(:choices 0 :delta))))
+                ;; DEBUG: Log response when usage is present
+                (when (plist-member response :usage)
+                  (message "[GPTEL-STREAM-DEBUG] Found usage in response: %S" response))
                 ;; Extract usage stats if present (from stream_options.include_usage)
                 (when-let ((usage (plist-get response :usage)))
+                  (message "[GPTEL-STREAM-DEBUG] Extracting tokens from usage: %S" usage)
                   (when-let ((input-tokens (plist-get usage :prompt_tokens)))
-                    (plist-put info :input-tokens input-tokens))
+                    (plist-put info :input-tokens input-tokens)
+                    (message "[GPTEL-STREAM-DEBUG] Set :input-tokens to %d" input-tokens))
                   (when-let ((output-tokens (plist-get usage :completion_tokens)))
-                    (plist-put info :output-tokens output-tokens)))
+                    (plist-put info :output-tokens output-tokens)
+                    (message "[GPTEL-STREAM-DEBUG] Set :output-tokens to %d" output-tokens)))
                 ;; Extract stop reason if present
                 (when-let* ((choice0 (map-nested-elt response '(:choices 0)))
                             (finish-reason (plist-get choice0 :finish_reason))
@@ -333,6 +339,8 @@ Mutate state INFO with response metadata."
         (reasoning-model-p ; TODO: Embed this capability in the model's properties
          (memq gptel-model '(o1 o1-preview o1-mini o3-mini o3 o4-mini
                                 gpt-5 gpt-5-mini gpt-5-nano gpt-5.1 gpt-5.2))))
+    (when gptel-stream
+      (message "[GPTEL-REQUEST-DEBUG] Streaming enabled, added :stream_options to request"))
     (when (and gptel-temperature (not reasoning-model-p))
       (plist-put prompts-plist :temperature gptel-temperature))
     (when gptel-use-tools
